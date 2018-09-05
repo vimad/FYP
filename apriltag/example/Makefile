@@ -6,7 +6,7 @@ CFLAGS = -g -std=gnu99 -Wall -Wno-unused-parameter -Wno-unused-function -O4
 CXXFLAGS = -g -Wall -O4
 LDFLAGS = -lpthread -lm
 
-TARGETS := apriltag_demo opencv_demo
+TARGETS := apriltag_demo detector
 
 .PHONY: all
 all: apriltag_demo
@@ -15,7 +15,7 @@ apriltag_demo: apriltag_demo.o ../libapriltag.a
 	@echo "   [$@]"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-opencv_demo: opencv_demo.o ../libapriltag.a
+detector: detector.o ../libapriltag.a
 	@echo "   [$@]"
 	@$(CXX) -o $@ $^ $(LDFLAGS) `pkg-config --libs opencv`
 
