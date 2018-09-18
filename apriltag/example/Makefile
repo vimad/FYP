@@ -15,7 +15,7 @@ apriltag_demo: apriltag_demo.o ../libapriltag.a
 	@echo "   [$@]"
 	@$(CC) -o $@ $^ $(LDFLAGS)
 
-detector: detector.o ../libapriltag.a
+detector: detector.o TagInterface.o ../libapriltag.a
 	@echo "   [$@]"
 	@$(CXX) -o $@ $^ $(LDFLAGS) `pkg-config --libs opencv`
 
