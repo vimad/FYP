@@ -104,7 +104,13 @@ void TagInterface::process()
     int frames = 0;
     double last_t = tic();
     while (true) {
-        cap >> frame;
+        //cap >> frame;
+
+        for(int i=0;i<5;i++)
+        {
+            cap >> frame;
+        }
+
         cvtColor(frame, gray, COLOR_BGR2GRAY);
 
         // Make an image_u8_t header for the Mat data
