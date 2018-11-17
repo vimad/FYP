@@ -39,9 +39,7 @@ using namespace cv;
 int main(int argc, char *argv[])
 {
     TagInterface detectorInterface;
-    detectorInterface.parseOptions(argc,argv);
-    detectorInterface.initDetector();
-    detectorInterface.process();
+    detectorInterface.start(argc,argv);
 
     return 0;
 }

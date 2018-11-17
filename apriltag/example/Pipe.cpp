@@ -14,6 +14,7 @@ void Pipe::init()
 {
 	//printf("init fifo\n");
 	mkfifo(FIFO_W, 0666);
+	mkfifo(FIFO_R, 0666);
 }
 
 

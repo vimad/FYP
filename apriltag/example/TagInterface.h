@@ -23,6 +23,8 @@ public:
 	TagInterface();
 	~TagInterface();
 
+	void start(int argc, char *argv[]);
+
 	void parseOptions(int argc, char *argv[]); //parsing parameters
 	void initDetector();
 	void process();

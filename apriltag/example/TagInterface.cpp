@@ -31,6 +31,13 @@ TagInterface::~TagInterface()
 	getopt_destroy(getopt);
 }
 
+void TagInterface::start(int argc, char *argv[])
+{
+	parseOptions(argc,argv);
+    	initDetector();
+    	process();
+}
+
 void TagInterface::parseOptions(int argc, char *argv[])
 {
 	getopt = getopt_create();
