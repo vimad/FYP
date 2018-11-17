@@ -2,6 +2,7 @@
 #define _TAGINTERFACE_H
 
 #include <iostream>
+#include <string>
 
 #include "opencv2/opencv.hpp"
 
@@ -14,13 +15,7 @@
 #include "common/getopt.h"
 #include "common/homography.h"
 
-
-struct pose
-{
-	double x;
-	double y;
-	double z;
-};
+#include "Pipe.h"
 
 class TagInterface
 {
@@ -35,11 +30,16 @@ public:
 private:
 
 	const char *famname;
+  int isVisualFeedOn;
+  int com;
+  int tag_id;
 
 	getopt_t *getopt;
 	apriltag_family_t *tf;
 	apriltag_detector_t *td;
 	cv::VideoCapture cap;
+
+	Pipe pipe;
 
 	void drawTags(apriltag_detection_t *det, cv::Mat &frame);
 	pose getPosition(apriltag_detection_t *det);

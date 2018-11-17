@@ -47,7 +47,9 @@ void TagInterface::parseOptions(int argc, char *argv[])
     getopt_add_bool(getopt, '1', "refine-decode", 0, "Spend more time trying to decode tags");
     getopt_add_bool(getopt, '2', "refine-pose", 0, "Spend more time trying to precisely localize tags");
 
-    getopt_add_int(getopt, 'i', "target-id", "12", "Set the id of the target landing pad");
+    getopt_add_int(getopt, 'i', "target-id", "1000", "Set the id of the target landing pad");
+    getopt_add_int(getopt, 'v', "visual", "1", "visual feed");
+    getopt_add_int(getopt, 'c', "com", "1", "communication");
 
     if (!getopt_parse(getopt, argc, argv, 1) || getopt_get_bool(getopt, "help")) 
     {
@@ -87,6 +89,10 @@ void TagInterface::initDetector()
     td->refine_edges = getopt_get_bool(getopt, "refine-edges");
     td->refine_decode = getopt_get_bool(getopt, "refine-decode");
     td->refine_pose = getopt_get_bool(getopt, "refine-pose");
+    
+    isVisualFeedOn = getopt_get_int(getopt, "visual");
+    com = getopt_get_int(getopt, "com");
+    tag_id = getopt_get_int(getopt, "target-id");
 
     // Initialize camera
     cap = VideoCapture(0);
@@ -95,11 +101,24 @@ void TagInterface::initDetector()
         exit(1);
     }
 
+    //inizialize the pipe
+    pipe.init();
+
 }
 
 void TagInterface::process()
 {
+    //Wait for the start signal
+    string val = "";
+    while(strcmp(val.c_str(),"start") !=0 && com == 1)
+    {
+        char* rec = pipe.ReceiveMessage();
+        string str(rec);
+        val = str.substr(0,5);
+        cout<<"message got "<<val<< endl;
+    } 
 	
+    //Start Vision system
     Mat frame, gray;
     int frames = 0;
     double last_t = tic();
@@ -123,6 +142,19 @@ void TagInterface::process()
         zarray_t *detections = apriltag_detector_detect(td, &im);
         cout << zarray_size(detections) << " tags detected" << endl;
 
+        if(zarray_size(detections) == 0)
+        {
+            if(com)
+            {
+              pose p;
+              p.id = 1;
+              p.timestamp = tic();
+              p.x = 0; p.y = 0; p.z = 0;
+              pipe.SendMessage(p);
+            }
+        }
+
+
         // print out the frame rate at which image frames are being processed
         frames++;
         if (frames % 10 == 0) {
@@ -135,23 +167,28 @@ void TagInterface::process()
         for (int i = 0; i < zarray_size(detections); i++)
         {
         	apriltag_detection_t *det;
-			zarray_get(detections, i, &det);
+          zarray_get(detections, i, &det);
 
             pose position;
             position = getPosition(det);
+            if(com)
+              pipe.SendMessage(position);
 
             cout << "x = "<< position.x << " y = "<<position.y<<" z = "<<position.z<<endl;
-
-			drawTags(det,frame);
+          if(isVisualFeedOn)
+			      drawTags(det,frame);
         }
 
         zarray_destroy(detections);
 
-        imshow("Tag Detections", frame);
-        char key = waitKey(1);
-        if(key == 'p') break;
-        /*if (waitKey(1) >= 0)
-            break;*/
+        if(isVisualFeedOn)
+        {
+          imshow("Tag Detections", frame);
+          char key = waitKey(1);
+          if(key == 'p') break;
+          /*if (waitKey(1) >= 0)
+              break;*/
+        }
     }
 
 }
@@ -165,6 +202,9 @@ pose TagInterface::getPosition(apriltag_detection_t *det)
     MATD_EL(M, 2, 3) *= scale;
 
     pose position;
+
+    position.id = 2;
+    position.timestamp = tic();
 
     position.x = MATD_EL(M, 0, 3);
     position.y = MATD_EL(M, 1, 3);
