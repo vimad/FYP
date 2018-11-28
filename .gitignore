@@ -1,3 +1,4 @@
 *.o
 communiction/mav.*
 *.so
+apriltag/example/video

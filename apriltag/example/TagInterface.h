@@ -35,6 +35,7 @@ private:
   int isVisualFeedOn;
   int com;
   int tag_id;
+  int record;
 
 	getopt_t *getopt;
 	apriltag_family_t *tf;

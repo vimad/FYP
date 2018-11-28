@@ -57,6 +57,7 @@ void TagInterface::parseOptions(int argc, char *argv[])
     getopt_add_int(getopt, 'i', "target-id", "1000", "Set the id of the target landing pad");
     getopt_add_int(getopt, 'v', "visual", "1", "visual feed");
     getopt_add_int(getopt, 'c', "com", "1", "communication");
+    getopt_add_int(getopt, 'r', "record", "0", "record-video");
 
     if (!getopt_parse(getopt, argc, argv, 1) || getopt_get_bool(getopt, "help")) 
     {
@@ -100,6 +101,7 @@ void TagInterface::initDetector()
     isVisualFeedOn = getopt_get_int(getopt, "visual");
     com = getopt_get_int(getopt, "com");
     tag_id = getopt_get_int(getopt, "target-id");
+    record = getopt_get_int(getopt, "record");
 
     // Initialize camera
     cap = VideoCapture(0);
@@ -107,6 +109,8 @@ void TagInterface::initDetector()
         cerr << "Couldn't open video capture device" << endl;
         exit(1);
     }
+    cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT,420);
 
     //inizialize the pipe
     pipe.init();
@@ -129,6 +133,14 @@ void TagInterface::process()
     Mat frame, gray;
     int frames = 0;
     double last_t = tic();
+
+    ostringstream strs;
+    strs<<"./video/vid-"<<last_t<<".avi";
+    string strvid = strs.str();
+    
+    VideoWriter video(strvid,CV_FOURCC('M','J','P','G'),10,Size(640,420));
+    
+
     while (true) {
         //cap >> frame;
 
@@ -182,7 +194,7 @@ void TagInterface::process()
               pipe.SendMessage(position);
 
             cout << "x = "<< position.x << " y = "<<position.y<<" z = "<<position.z<<endl;
-          if(isVisualFeedOn)
+          if(isVisualFeedOn || record)
 			      drawTags(det,frame);
         }
 
@@ -191,19 +203,25 @@ void TagInterface::process()
         if(isVisualFeedOn)
         {
           imshow("Tag Detections", frame);
-          char key = waitKey(1);
+	  char key = waitKey(1);
           if(key == 'p') break;
           /*if (waitKey(1) >= 0)
               break;*/
         }
+
+	if(record){
+   		video.write(frame);
+	}
+	
     }
+    video.release();
 
 }
 
 pose TagInterface::getPosition(apriltag_detection_t *det)
 {
-    matd_t *M = homography_to_pose(det->H, 600, 600, 320, 240);
-    double scale = 0.05 / 2.0; //0.05 is the tag size
+    matd_t *M = homography_to_pose(det->H, 503, 499, 319, 245);
+    double scale = 0.4 / 2.0; //tag size / 2
     MATD_EL(M, 0, 3) *= scale;
     MATD_EL(M, 1, 3) *= scale;
     MATD_EL(M, 2, 3) *= scale;
