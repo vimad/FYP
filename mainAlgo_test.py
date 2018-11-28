@@ -1,5 +1,7 @@
 #! /usr/bin/python
 
+from dronekit import LocationGlobal
+
 from util.util import rotmat,rotmat_inverse,mul_mat,getCordinatesInEarthFrame
 
 from communiction.com_protocol import getLocation_meters,getDistance,getBearing,Quadcopter
@@ -7,29 +9,26 @@ from communiction.com_protocol import getLocation_meters,getDistance,getBearing,
 import os,time,math,sys,errno
 
 
-TARGET_ID = 13
+tagID = 13
 
-mode = "SERIAL"
-
-kp = 1
+kp = 1.0
 kd = 0.5
 ki = 0
 
+kpz = 0.01
+kdz = 0.01
 
-FIFO_1 = '/tmp/server_to_client_fifo'
-FIFO_2 = '/tmp/client_to_server_fifo'
+FIFO_R = '/tmp/fifo_c-p'
+FIFO_W = '/tmp/fifo_p-c'
 
-if (mode != "SERIAL"):
-    connectString = '/dev/ttyS0'
-    baud = 57600
-else:
-    connectString = 'udp:127.0.0.1:14551'
-    baud = 115200
+
+connectString = 'udp:127.0.0.1:14551'
+baud = 115200
 
 
 try:
-    os.mkfifo(FIFO_1)
-    os.mkfifo(FIFO_2)
+    os.mkfifo(FIFO_R)
+    os.mkfifo(FIFO_W)
 
 except OSError as oe:
     if oe.errno != errno.EEXIST:
@@ -43,23 +42,46 @@ def main():
 
     foundTag = False
     seeked = False
+    
+    cmds = copter.download_mission()
+    landing = cmds[-1]
 
-    while (copter.getMode() != "LAND"):
-        pass
-    else:
-        while(copter.getMode() != "GUIDED"):
-            copter.setMode("GUIDED")
-            time.sleep(0.1)
+    for cmd in cmds:
+        if cmd.command == 21:
+            landing = cmd
 
+    lx = landing.x
+    ly = landing.y
+    lz = landing.z
+
+    landing_location = LocationGlobal(lx, ly, lz) 
+
+    print landing_location
+
+    while (True):
+        print cmds.next,len(list(cmds)),getDistance(copter.vehicle.location.global_frame,landing_location)
+        if (len(list(cmds)) == cmds.next and getDistance(copter.vehicle.location.global_frame,landing_location) <= 5):
+            print "@landing Location"
+            break
+        time.sleep(1)
+    
+    while (copter.getMode() != "GUIDED"):
+        copter.setMode("GUIDED")
+
+    
     prev_height = 50
     while (copter.pos_alt_rel > 8.0):
         height = copter.pos_alt_rel
-        vz = kpz*(height - 8) + kdz*(height - prev_height)
+        vz = kpz*10*(height - 7.5) + kdz*10*(height - prev_height)
+        copter.setOffsetVelocity(0,0,vz,0)
+        prev_height = height
         time.sleep(0.1)
 
-    prev_location = [0, 0, 0]
+    prev_data = [0, 0, 0]
 
-    while (copter.pos_alt_rel >= 0.2):
+    print "\n\n*******waiting for vision system********\n\n"
+    z = 10
+    while (z > 0.2):
 
         raw_data = getTagInfo(tagID)
         timeoutCount = 0
@@ -79,34 +101,44 @@ def main():
             #copter.goto_location()
             timeoutCount += 1
 
+        
         elif (len(raw_data) > 0):
             timeoutCount = 0
             foundTag = True
 
-            data = map(float, raw_data.split(','))
+            data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
             raw_data = None
+            print data
             
             velocities = calcPID(data, prev_data, 0.1)
-
-            copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+            prev_data = data
+            z = data[2]
+            copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2], 0)
 
     if (copter.pos_alt_rel <= 0.2):
-        setMode("LAND")
+        copter.setMode("LAND")
 
 
 def calcPID(curr_data, prev_data, max_err):
     x_dot = curr_data[0] - prev_data[0]
     y_dot = curr_data[1] - prev_data[1]
-    x_dot = curr_data[2] - prev_data[2]
-   
+    z_dot = curr_data[2] - prev_data[2]
+
     vx = kp*curr_data[0]+kd*x_dot
     vy = kp*curr_data[1]+kd*y_dot
     vz = kp*curr_data[2]+kd*z_dot
 
-    if ((curr_data[0]**2 + curr_data[1]**2) > max_err):
+    if ((curr_data[0]**2 + curr_data[1]**2) > max_err**2):
         vz = 0
 
     return [vx, vy, vz]
 
+def getTagInfo(tagID):
+    readFifo = open(FIFO_R, 'r')
+    raw_data = readFifo.read().strip().split(",")
+
+    return ",".join(raw_data[2:5])
+
 if __name__=='__main__':
+    
     main()

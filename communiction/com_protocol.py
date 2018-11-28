@@ -264,6 +264,7 @@ class Quadcopter:
         self.vehicle.commands.download()
         self.vehicle.commands.wait_ready() # wait until download is complete.
         self.mission = self.vehicle.commands
+	return self.vehicle.commands
 
 
 
