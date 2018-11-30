@@ -1,4 +1,5 @@
 *.o
-communiction/mav.*
+mav.*
 *.so
 apriltag/example/video
+*.pyc
