@@ -1,8 +1,12 @@
 import math
 
-def rotmat(alpha, beta, gamma):
-
+def rotmat(alpha_deg, beta_deg, gamma_deg):
     '''this function returns a rotation matrix for given euler angles'''
+
+    alpha = convertToRadians(alpha_deg)
+    beta = convertToRadians(beta_deg)
+    gamma = convertToRadians(gamma_deg)
+
     R_gamma = [
             [math.cos(gamma), -math.sin(gamma), 0],
             [math.sin(gamma), math.cos(gamma), 0],
@@ -23,6 +27,13 @@ def rotmat(alpha, beta, gamma):
 
     R1 = mat_mul(R_alpha, R_beta)
     R = mat_mul(R, R_gamma)
+
+
+def convertToRadians(degrees):
+    return degrees*math.pi/180
+
+def convertToDegrees(rads):
+    return rads*180/math.pi
 
 
 def rotmat_inverse(rotmat):
