@@ -30,8 +30,9 @@ def ReceiveMessage():
 #print(str)
 
 while(True):
-	string=raw_input("Enter String to be reversed: ")
-	sendMessage(string)
+	#string=raw_input("Enter String to be reversed: ")
+	string ="start"
+	sendMessage("start")
 	if(string=="start"):
 		while(1):
 			str = ReceiveMessage() 

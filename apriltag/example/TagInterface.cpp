@@ -126,6 +126,9 @@ void TagInterface::initDetector()
 void TagInterface::process()
 {
     //Wait for the start signal
+    if(com)
+        cout<<"Waiting for message to start"<<endl;
+    
     string val = "";
     while(strcmp(val.c_str(),"start") !=0 && com == 1)
     {
