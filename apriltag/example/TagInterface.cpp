@@ -9,12 +9,14 @@ double tic() {
   return ((double)t.tv_sec + ((double)t.tv_usec)/1000000.);
 }
 
-
+//******************************************************************************
 TagInterface::TagInterface()
 {
+    initialized = false;
 
 }
 
+//******************************************************************************
 TagInterface::~TagInterface()
 {
 	apriltag_detector_destroy(td);
@@ -31,13 +33,15 @@ TagInterface::~TagInterface()
 	getopt_destroy(getopt);
 }
 
+//******************************************************************************
 void TagInterface::start(int argc, char *argv[])
 {
 	parseOptions(argc,argv);
-    	initDetector();
-    	process();
+    initDetector();
+    process();
 }
 
+//******************************************************************************
 void TagInterface::parseOptions(int argc, char *argv[])
 {
 	getopt = getopt_create();
@@ -55,8 +59,8 @@ void TagInterface::parseOptions(int argc, char *argv[])
     getopt_add_bool(getopt, '2', "refine-pose", 0, "Spend more time trying to precisely localize tags");
 
     getopt_add_int(getopt, 'i', "target-id", "1000", "Set the id of the target landing pad");
-    getopt_add_int(getopt, 'v', "visual", "1", "visual feed");
-    getopt_add_int(getopt, 'c', "com", "1", "communication");
+    getopt_add_int(getopt, 'v', "visual", "0", "visual feed");
+    getopt_add_int(getopt, 'c', "com", "0", "communication");
     getopt_add_int(getopt, 'r', "record", "0", "record-video");
 
     if (!getopt_parse(getopt, argc, argv, 1) || getopt_get_bool(getopt, "help")) 
@@ -67,6 +71,7 @@ void TagInterface::parseOptions(int argc, char *argv[])
     }	
 }
 
+//******************************************************************************
 void TagInterface::initDetector()
 {
 	apriltag_family_t *tf = NULL;
@@ -117,6 +122,7 @@ void TagInterface::initDetector()
 
 }
 
+//******************************************************************************
 void TagInterface::process()
 {
     //Wait for the start signal
@@ -134,12 +140,17 @@ void TagInterface::process()
     int frames = 0;
     double last_t = tic();
 
-    ostringstream strs;
-    strs<<"./video/vid-"<<last_t<<".avi";
-    string strvid = strs.str();
-    
-    VideoWriter video(strvid,CV_FOURCC('M','J','P','G'),10,Size(640,420));
-    
+    VideoWriter video;
+
+    if(record){
+        ostringstream strs;
+        strs<<"./video/vid-"<<((int)last_t)%1000000<<".avi";
+        string strvid = strs.str();
+        video = VideoWriter(strvid,CV_FOURCC('M','J','P','G'),10,Size(640,420));
+        initialize();
+	    linebuffered( false );
+        echo( false );
+    }
 
     while (true) {
         //cap >> frame;
@@ -186,7 +197,7 @@ void TagInterface::process()
         for (int i = 0; i < zarray_size(detections); i++)
         {
         	apriltag_detection_t *det;
-          zarray_get(detections, i, &det);
+            zarray_get(detections, i, &det);
 
             pose position;
             position = getPosition(det);
@@ -194,30 +205,37 @@ void TagInterface::process()
               pipe.SendMessage(position);
 
             cout << "x = "<< position.x << " y = "<<position.y<<" z = "<<position.z<<endl;
-          if(isVisualFeedOn || record)
-			      drawTags(det,frame);
+            
+            if(isVisualFeedOn || record)
+			    drawTags(det,frame);
         }
 
         zarray_destroy(detections);
 
         if(isVisualFeedOn)
         {
-          imshow("Tag Detections", frame);
-	  char key = waitKey(1);
-          if(key == 'p') break;
-          /*if (waitKey(1) >= 0)
-              break;*/
+            imshow("Tag Detections", frame);
+	        char key = waitKey(1);
+            if(key == 'p') break;
+            /*if (waitKey(1) >= 0)
+                break;*/
         }
 
-	if(record){
-   		video.write(frame);
-	}
+        if(record){
+            video.write(frame);
+            if(iskeypressed(0)){
+                linebuffered(true);
+	            echo(true);
+                video.release();
+                break;
+            }
+        }
 	
     }
-    video.release();
 
 }
 
+//******************************************************************************
 pose TagInterface::getPosition(apriltag_detection_t *det)
 {
     matd_t *M = homography_to_pose(det->H, 503, 499, 319, 245);
@@ -233,11 +251,12 @@ pose TagInterface::getPosition(apriltag_detection_t *det)
 
     position.x = MATD_EL(M, 0, 3);
     position.y = MATD_EL(M, 1, 3);
-    position.z = MATD_EL(M, 2, 3);
+    position.z = MATD_EL(M, 2, 3) * (-1);
 
     return position;
 }
 
+//******************************************************************************
 void TagInterface::drawTags(apriltag_detection_t *det, cv::Mat &frame)
 {
 	line(frame, Point(det->p[0][0], det->p[0][1]),
@@ -265,4 +284,62 @@ void TagInterface::drawTags(apriltag_detection_t *det, cv::Mat &frame)
 	                           det->c[1]+textsize.height/2),
 	        fontface, fontscale, Scalar(0xff, 0x99, 0), 2);
 	
+}
+
+//******************************************************************************
+//**************************Key press event handling****************************
+
+bool TagInterface::initialize(){
+    if (!initialized)
+	{
+	initialized = (bool)isatty( STDIN_FILENO );
+	if (initialized)
+	  initialized = (0 == tcgetattr( STDIN_FILENO, &initial_settings ));
+	if (initialized)
+	  std::cin.sync_with_stdio();
+	}
+	return initialized;
+}
+
+bool TagInterface::iskeypressed(unsigned timeout_ms = 0){
+    if (!initialized) {
+		cout<<"not wanted"<<endl;
+		return false;
+	}
+
+	struct pollfd pls[ 1 ];
+	pls[ 0 ].fd     = STDIN_FILENO;
+	pls[ 0 ].events = POLLIN | POLLPRI;
+	return poll( pls, 1, timeout_ms ) > 0;
+}
+
+bool TagInterface::linebuffered(bool on = true){
+    struct termios settings;
+
+    if (!initialized) return false;
+
+    if (tcgetattr( STDIN_FILENO, &settings )) return false;
+
+    if (on) settings.c_lflag |= ICANON;
+    else    settings.c_lflag &= ~(ICANON);
+
+    if (tcsetattr( STDIN_FILENO, TCSANOW, &settings )) return false;
+
+    if (on) setlinebuf( stdin );
+    else    setbuf( stdin, NULL );
+
+    return true;
+}
+
+bool TagInterface::echo(bool on = true){
+    struct termios settings;
+
+    if (!initialized) return false;
+
+    if (tcgetattr( STDIN_FILENO, &settings )) return false;
+
+    if (on) settings.c_lflag |= ECHO;
+    else    settings.c_lflag &= ~(ECHO);
+
+    return 0 == tcsetattr( STDIN_FILENO, TCSANOW, &settings );
 }

@@ -3,6 +3,12 @@
 
 #include <iostream>
 #include <string>
+#include <cstdio>
+#include <limits>
+
+#include <unistd.h>
+#include <termios.h>
+#include <poll.h>
 
 #include "opencv2/opencv.hpp"
 
@@ -32,10 +38,13 @@ public:
 private:
 
 	const char *famname;
-  int isVisualFeedOn;
-  int com;
-  int tag_id;
-  int record;
+	int isVisualFeedOn;
+	int com;
+	int tag_id;
+	int record;
+
+	bool initialized;
+	struct termios initial_settings;
 
 	getopt_t *getopt;
 	apriltag_family_t *tf;
@@ -46,6 +55,11 @@ private:
 
 	void drawTags(apriltag_detection_t *det, cv::Mat &frame);
 	pose getPosition(apriltag_detection_t *det);
+
+	bool initialize();
+	bool iskeypressed(unsigned timeout_ms);
+	bool linebuffered(bool on);
+	bool echo(bool on);
 };
 
 
