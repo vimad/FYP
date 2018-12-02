@@ -33,9 +33,12 @@ except OSError as oe:
 def main(connectString = "/dev/ttyS0", baud = 57600):
 
     copter = Quadcopter(connection_string = connectString, baud = baud)
-
+    
     foundTag = False
     seeked = False
+
+    while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
+        pass
    
     cmds = copter.downloadMission()
     landing = cmds[-1]
@@ -95,10 +98,15 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 
         
         elif (len(raw_data) > 0):
-            timeoutCount = 0
-            foundTag = True
 
-            data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
+            try:
+                data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
+                timeoutCount = 0
+                foundTag = True
+                seeked = False
+            except ValueError as ve:
+                continue
+
             raw_data = None
             print data
             
@@ -128,7 +136,7 @@ def calcPID(curr_data, prev_data, max_err):
 
     vx = kp*curr_data[0]+kd*x_dot
     vy = kp*curr_data[1]+kd*y_dot
-    vz = kp*curr_data[2]+kd*z_dot
+    vz = kpz*curr_data[2]+kdz*z_dot
 
     if ((curr_data[0]**2 + curr_data[1]**2) > max_err**2):
         vz = 0 
