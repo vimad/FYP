@@ -71,7 +71,8 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
         time.sleep(0.1)
 
     prev_data = [0, 0, 0]
-
+    
+    sendVisionRequest("start")
     print("\n\n*******waiting for vision system********\n\n")
 
     z = 10
@@ -125,8 +126,14 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 def getTagInfo(tagID):
     readFifo = open(FIFO_R, 'r')
     raw_data = readFifo.read().strip().split(",")
+    readFifo.close()
 
     return ",".join(raw_data[2:5])
+
+def sendVisionRequest(message):
+    writeFifo = open(FIFO_W, "w")
+    writeFifo.write(message)
+    writeFifo.close()
 
 
 def calcPID(curr_data, prev_data, max_err):
