@@ -10,12 +10,12 @@ import os, sys, time, math, errno
 
 tagID = 13
 
-kp = 1.0
+kp = 0.2
 kd = 0.5
 ki = 0
 
-kpz = 0.01
-kdz = 0.01
+kpz = 0.1
+kdz = 0.05
 
 FIFO_R = '/tmp/fifo_c-p'
 FIFO_W = '/tmp/fifo_p-c'
@@ -37,8 +37,8 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
     foundTag = False
     seeked = False
 
-    while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
-        pass
+    #while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
+    #    pass
    
     cmds = copter.downloadMission()
     landing = cmds[-1]
@@ -65,7 +65,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
     prev_height = 50
     while (copter.pos_alt_rel > 8.0):
         height = copter.pos_alt_rel
-        vz = kpz*10*(height - 7.5) + kdz*10*(height - prev_height)
+        vz = kpz*10*(height - 7.5) + kdz*10*(prev_height - height)
         copter.setOffsetVelocity(0, 0, vz)
         prev_height = height
         time.sleep(0.1)
@@ -74,7 +74,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
     
     sendVisionRequest("start")
     print("\n\n*******waiting for vision system********\n\n")
-
+    
     z = 10
     while (z > 0.2):
 
@@ -93,7 +93,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
  
         elif (raw_data == "TIMEOUT"):
             data = predictionOf(prev_data, velocities)
-            velocities = calcPID(data, prev_data, 0.1)
+            velocities = calcPID(data, prev_data, 1.0)
             velocities[2] = 0
             timeoutCount += 1
 
@@ -111,12 +111,13 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             raw_data = None
             print data
             
-            velocities = calcPID(data, prev_data, 0.1)
+            velocities = calcPID(data, prev_data, 0.7)
 
 
         prev_data = data
         z = data[2]
         copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+        print(velocities)
 
     
     copter.setMode("LAND")
@@ -125,7 +126,10 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 
 def getTagInfo(tagID):
     readFifo = open(FIFO_R, 'r')
-    raw_data = readFifo.read().strip().split(",")
+    while (True):
+        raw_data = readFifo.read().strip().split(",")
+        if (raw_data[0] == '2'):
+            break
     readFifo.close()
 
     return ",".join(raw_data[2:5])
