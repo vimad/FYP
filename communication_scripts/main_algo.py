@@ -63,7 +63,10 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
         copter.setMode("GUIDED")
 
     
-    prev_height = 50
+    prev_height = 25
+    copter.setOffsetVelocity(0,0,0)
+    time.sleep(4)
+
     while (copter.pos_alt_rel > 8.0):
         height = copter.pos_alt_rel
         vz = kpz*10*(height - 7.5) + kdz*10*(prev_height - height)
@@ -76,26 +79,29 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
     sendVisionRequest("start")
     print("\n\n*******waiting for vision system********\n\n")
     
+    t1 = time.time()
     z = 10
-    while (z > 0.2):
+    while (z > 0.7 and copter.pos_alt_rel > 0.5):
 
         raw_data = getTagInfo(tagID)
         timeoutCount = 0
 
         
-        if (((raw_data == "TIMEOUT") and (~foundTag) and (seeked)) or timeoutCount == 5):
+        if (((raw_data == "TIMEOUT") and (not foundTag) and (seeked)) or timeoutCount == 5):
             copter.setMode("RTL")
             break
 
-        elif (raw_data == "TIMEOUT" and (~foundTag)):
-            #seek()
+        elif (raw_data == "TIMEOUT" and (not foundTag)):
+            prev_data = [0,0,0]
             seeked = True
             continue
  
         elif (raw_data == "TIMEOUT"):
-            data = predictionOf(prev_data, velocities)
-            velocities = calcPID(data, prev_data, 1.0)
-            velocities[2] = 0
+            data = predictionOf(prev_data, velocities, time.time()-t1)
+            velocities = calcPID(data, prev_data, 0)
+            copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+            prev_data = data
+            
             timeoutCount += 1
 
         
@@ -112,12 +118,16 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             raw_data = None
             print data
             
-            velocities = calcPID(data, prev_data, z/2.0)
+            if (z > 1.6):
+                velocities = calcPID(data, prev_data, z/2.0)
+            else:
+                velocities = calcPID(data, prev_data, 0.5)
 
 
         prev_data = data
         z = data[2]
         copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+        t1 = time.time()
         print(velocities)
 
     
@@ -126,11 +136,16 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 
 
 def getTagInfo(tagID):
+    t1 = time.time()
     readFifo = open(FIFO_R, 'r')
-    while (True):
+    while (time.time() - t1 > 5):
         raw_data = readFifo.read().strip().split(",")
         if (raw_data[0] == '2'):
             break
+    else:
+        readFifo.close()
+        return "TIMEOUT"
+
     readFifo.close()
 
     return ",".join(raw_data[2:5])
@@ -154,6 +169,11 @@ def calcPID(curr_data, prev_data, max_err):
         vz = 0 
 
     return [vx, vy, vz] 
+
+def predictionOf(prev_data, velocities, time_diff):
+    data = [prev_data[i]-velocities[i]*time_diff for i in range(3)]
+    return data
+    
 
 
 if __name__=='__main__':
