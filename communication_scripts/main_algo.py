@@ -33,12 +33,13 @@ except OSError as oe:
 def main(connectString = "/dev/ttyS0", baud = 57600):
 
     copter = Quadcopter(connection_string = connectString, baud = baud)
+    copter.downloadMission()
     
     foundTag = False
     seeked = False
 
-    #while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
-    #    pass
+    while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
+        pass
    
     cmds = copter.downloadMission()
     landing = cmds[-1]
@@ -111,7 +112,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             raw_data = None
             print data
             
-            velocities = calcPID(data, prev_data, 0.7)
+            velocities = calcPID(data, prev_data, z/2.0)
 
 
         prev_data = data
