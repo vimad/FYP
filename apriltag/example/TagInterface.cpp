@@ -115,7 +115,7 @@ void TagInterface::initDetector()
         exit(1);
     }
     cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
-    cap.set(CV_CAP_PROP_FRAME_HEIGHT,420);
+    cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
 
     //inizialize the pipe
     pipe.init();
@@ -149,7 +149,7 @@ void TagInterface::process()
         ostringstream strs;
         strs<<"./video/vid-"<<((int)last_t)%1000000<<".avi";
         string strvid = strs.str();
-        video = VideoWriter(strvid,CV_FOURCC('M','J','P','G'),10,Size(640,420));
+        video = VideoWriter(strvid,CV_FOURCC('M','J','P','G'),10,Size(640,480));
         initialize();
 	    linebuffered( false );
         echo( false );
@@ -241,8 +241,8 @@ void TagInterface::process()
 //******************************************************************************
 pose TagInterface::getPosition(apriltag_detection_t *det)
 {
-    matd_t *M = homography_to_pose(det->H, 503, 499, 319, 245);
-    double scale = 0.4 / 2.0; //tag size / 2
+    matd_t *M = homography_to_pose(det->H, 509, 509, 321, 242);
+    double scale = 0.2; //tag size / 2
     MATD_EL(M, 0, 3) *= scale;
     MATD_EL(M, 1, 3) *= scale;
     MATD_EL(M, 2, 3) *= scale;

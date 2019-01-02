@@ -10,12 +10,12 @@ import os, sys, time, math, errno
 
 tagID = 13
 
-kp = 0.2
-kd = 0.5
+kp = 0.1
+kd = 0.05
 ki = 0
 
-kpz = 0.1
-kdz = 0.05
+kpz = 0.05
+kdz = 0.025
 
 FIFO_R = '/tmp/fifo_c-p'
 FIFO_W = '/tmp/fifo_p-c'
@@ -38,8 +38,8 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
     foundTag = False
     seeked = False
 
-    while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
-        pass
+    #while ((not copter.isArmed()) or (copter.getMode() != "AUTO")):
+    #    pass
    
     cmds = copter.downloadMission()
     landing = cmds[-1]
@@ -80,8 +80,10 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
     print("\n\n*******waiting for vision system********\n\n")
     
     t1 = time.time()
+    
+    filename = "datalog_"+time.strftime("%Y-%m-%d %H:%M:%S")
     z = 10
-    while (z > 0.7 and copter.pos_alt_rel > 0.5):
+    while (z > 1.0):
 
         raw_data = getTagInfo(tagID)
         timeoutCount = 0
@@ -97,16 +99,18 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             continue
  
         elif (raw_data == "TIMEOUT"):
+            print("In prediction step")
             data = predictionOf(prev_data, velocities, time.time()-t1)
             velocities = calcPID(data, prev_data, 0)
             copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+            print("predicted",velocities)
             prev_data = data
             
             timeoutCount += 1
 
         
         elif (len(raw_data) > 0):
-
+            print("Normal state")
             try:
                 data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
                 timeoutCount = 0
@@ -119,16 +123,19 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             print data
             
             if (z > 1.6):
-                velocities = calcPID(data, prev_data, z/2.0)
+                velocities = calcPID(data, prev_data, (z-1)/3.0)
             else:
-                velocities = calcPID(data, prev_data, 0.5)
+                velocities = calcPID(data, prev_data, 0.45)
 
 
         prev_data = data
         z = data[2]
         copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
         t1 = time.time()
-        print(velocities)
+        print("normal",velocities)
+        #logFile = open(filename,"a+")
+        #logFile.write(raw_data)
+        #logfile.close()
 
     
     copter.setMode("LAND")
@@ -138,7 +145,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 def getTagInfo(tagID):
     t1 = time.time()
     readFifo = open(FIFO_R, 'r')
-    while (time.time() - t1 > 5):
+    while (True):
         raw_data = readFifo.read().strip().split(",")
         if (raw_data[0] == '2'):
             break
