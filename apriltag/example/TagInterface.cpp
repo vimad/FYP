@@ -116,6 +116,12 @@ void TagInterface::initDetector()
     }
     cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
     cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+    fx = 509;
+    fy = 509;
+    cx = 321;
+    cy = 242;
+    state = 1;
+    previousHeight = 8;
 
     //inizialize the pipe
     pipe.init();
@@ -225,7 +231,11 @@ void TagInterface::process()
         }
 
         if(record){
-            video.write(frame);
+            cv::Mat writableImage;
+            cv::resize(frame, writableImage, Size(640,480));
+
+            video.write(writableImage);
+            //video.write(frame);
             if(iskeypressed(0)){
                 linebuffered(true);
 	            echo(true);
@@ -241,7 +251,8 @@ void TagInterface::process()
 //******************************************************************************
 pose TagInterface::getPosition(apriltag_detection_t *det)
 {
-    matd_t *M = homography_to_pose(det->H, 509, 509, 321, 242);
+    matd_t *M = homography_to_pose(det->H, fx, fy, cx, cy);
+    
     double scale = 0.2; //tag size / 2
     MATD_EL(M, 0, 3) *= scale;
     MATD_EL(M, 1, 3) *= scale;
@@ -255,6 +266,26 @@ pose TagInterface::getPosition(apriltag_detection_t *det)
     position.x = MATD_EL(M, 0, 3);
     position.y = MATD_EL(M, 1, 3);
     position.z = MATD_EL(M, 2, 3) * (-1);
+    
+    previousHeight = position.z;
+    if(previousHeight < 2 && state == 1){
+      cap.set(CV_CAP_PROP_FRAME_WIDTH,320);
+      cap.set(CV_CAP_PROP_FRAME_HEIGHT,240);
+      fx = 254;
+      fy = 254;
+      cx = 161;
+      cy = 121;
+      state =2;
+    }
+    if(previousHeight > 2 && state == 2){
+      cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
+      cap.set(CV_CAP_PROP_FRAME_HEIGHT,480);
+      fx = 509;
+      fy = 509;
+      cx = 321;
+      cy = 242;
+      state =1;
+    }  
 
     return position;
 }

@@ -4,6 +4,8 @@ from dronekit import LocationGlobal
 
 from communication.quadcopter import Quadcopter
 from communication.util import getDistance
+from util.util import *
+import numpy as np
 
 import os, sys, time, math, errno
 
@@ -87,6 +89,10 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 
         raw_data = getTagInfo(tagID)
         timeoutCount = 0
+        
+        roll=copter.att_roll_deg*np.pi/180
+        pitch=copter.att_pitch_deg*np.pi/180
+        yaw=0
 
         
         if (((raw_data == "TIMEOUT") and (not foundTag) and (seeked)) or timeoutCount == 5):
@@ -100,11 +106,11 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
  
         elif (raw_data == "TIMEOUT"):
             print("In prediction step")
-            data = predictionOf(prev_data, velocities, time.time()-t1)
-            velocities = calcPID(data, prev_data, 0)
-            copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+            corrected_cords = predictionOf(prev_cords, corrected_velocities, time.time()-t1)
+            corrected_velocities = getVectorInDroneFrame(roll, pitch, velocities)
+            copter.setOffsetVelocity(corrected_velocities[0], corrected_velocities[1], corrected_velocities[2])
             print("predicted",velocities)
-            prev_data = data
+            prev_cords = corrected_cords
             
             timeoutCount += 1
 
@@ -113,6 +119,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             print("Normal state")
             try:
                 data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
+                corrected_cords = getVectorInEarthFrame(roll,pitch,data)
                 timeoutCount = 0
                 foundTag = True
                 seeked = False
@@ -123,16 +130,17 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             print data
             
             if (z > 1.6):
-                velocities = calcPID(data, prev_data, (z-1)/3.0)
+                velocities = calcPID(corrected_cords, prev_cords, (z-1)/3.0)
             else:
-                velocities = calcPID(data, prev_data, 0.45)
+                velocities = calcPID(corrected_cords, prev_cords, 0.2)
 
 
-        prev_data = data
-        z = data[2]
-        copter.setOffsetVelocity(velocities[0], velocities[1], velocities[2])
+        prev_cords = corrected_cords
+        z = corrected_cords[2]
+        corrected_velocities = getVectorInDroneFrame(roll, pitch, velocities)
+        copter.setOffsetVelocity(corrected_velocities[0], corrected_velocities[1], corrected_velocities[2])
         t1 = time.time()
-        print("normal",velocities)
+        print("normal",corrected_velocities)
         #logFile = open(filename,"a+")
         #logFile.write(raw_data)
         #logfile.close()

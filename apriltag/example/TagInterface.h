@@ -42,6 +42,9 @@ private:
 	int com;
 	int tag_id;
 	int record;
+  double previousHeight;
+  int state;
+  int fx,fy,cx,cy;
 
 	bool initialized;
 	struct termios initial_settings;
