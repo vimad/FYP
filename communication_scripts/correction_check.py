@@ -76,5 +76,6 @@ while True:
   
   print rotation
   
-  coord = getVectorInEarthFrame(roll, pitch, data[0], data[1], data[2])
+  coord = getVectorInEarthFrameComp(roll, pitch, data[0], data[1], data[2])
   print coord
+  print("data-------------------------------------------",coord[0],coord[1],coord[2])

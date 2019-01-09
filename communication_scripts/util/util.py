@@ -35,20 +35,20 @@ def rotmat_inverse(rotmat):
     return rotmat.transpose()
 
 
-def getVectorInEarthFrame(roll, pitch, x, y, z, yaw = 0,):
+def getVectorInEarthFrameComp(roll, pitch, x, y, z, yaw = 0,):
     rot = rotmat(roll, pitch, yaw)
     P_Aorg = np.matrix([[x], [y], [z]])
     P_Borg = rot*P_Aorg
-    return P_Borg
+    return P_Borg.transpose().tolist()[0]
 
-def getVectorInDroneFrame(roll, pitch, x, y, z, yaw = 0):
+def getVectorInDroneFrameComp(roll, pitch, x, y, z, yaw = 0):
     rot = rotmat(roll, pitch, yaw).transpose()
     P_Borg = np.matrix([[x], [y], [z]])
     P_Aorg = rot*P_Borg
-    return P_Aorg
+    return P_Aorg.transpose().tolist()[0]
     
 def getVectorInEarthFrame(roll, pitch, vect, yaw = 0):
-    getVectorInEarthFrame(roll, pitch, vect[0], vect[1], vect[2], yaw)
+    return getVectorInEarthFrameComp(roll, pitch, vect[0], vect[1], vect[2], yaw)
     
 def getVectorInDroneFrame(roll, pitch, vect, yaw = 0):
-    getVectorInDroneFrame(roll, pitch, vect[0], vect[1], vect[2], yaw)
+    return getVectorInDroneFrameComp(roll, pitch, vect[0], vect[1], vect[2], yaw)

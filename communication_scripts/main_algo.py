@@ -1,7 +1,6 @@
 #! /usr/bin/python
 
 from dronekit import LocationGlobal
-
 from communication.quadcopter import Quadcopter
 from communication.util import getDistance
 from util.util import *
@@ -75,8 +74,8 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
         copter.setOffsetVelocity(0, 0, vz)
         prev_height = height
         time.sleep(0.1)
-
-    prev_data = [0, 0, 0]
+    
+    prev_cords = [0, 0, 0]
     
     sendVisionRequest("start")
     print("\n\n*******waiting for vision system********\n\n")
@@ -100,7 +99,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             break
 
         elif (raw_data == "TIMEOUT" and (not foundTag)):
-            prev_data = [0,0,0]
+            prev_cords = [0,0,0]
             seeked = True
             continue
  
@@ -113,13 +112,15 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             prev_cords = corrected_cords
             
             timeoutCount += 1
-
+            
         
         elif (len(raw_data) > 0):
             print("Normal state")
             try:
                 data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
                 corrected_cords = getVectorInEarthFrame(roll,pitch,data)
+                print getVectorInEarthFrame(roll,pitch,data)
+                print("\n\nCordinates",corrected_cords,"\n\n")
                 timeoutCount = 0
                 foundTag = True
                 seeked = False
@@ -127,7 +128,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
                 continue
 
             raw_data = None
-            print data
+            print data,corrected_cords
             
             if (z > 1.6):
                 velocities = calcPID(corrected_cords, prev_cords, (z-1)/3.0)
@@ -138,14 +139,17 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
         prev_cords = corrected_cords
         z = corrected_cords[2]
         corrected_velocities = getVectorInDroneFrame(roll, pitch, velocities)
+        print("\n\nVelocities",corrected_cords,"\n\n")
         copter.setOffsetVelocity(corrected_velocities[0], corrected_velocities[1], corrected_velocities[2])
-        t1 = time.time()
+        t1 = time.time() 
         print("normal",corrected_velocities)
         #logFile = open(filename,"a+")
         #logFile.write(raw_data)
         #logfile.close()
 
     
+    copter.setOffsetVelocity(0,0,0)
+    time.sleep(0.75)
     copter.setMode("LAND")
 
 
