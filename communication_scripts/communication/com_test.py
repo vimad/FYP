@@ -28,6 +28,3 @@ def test_3():
     time.sleep(2)
     copter.setMode("LAND")
 
-
-if __name__=="__main__":
-    test_3()

@@ -163,8 +163,11 @@ void TagInterface::process()
 
     while (true) {
         //cap >> frame;
+        int m = 5;
+        if(state == 2)
+          m = 3;
 
-        for(int i=0;i<5;i++)
+        for(int i=0;i<m;i++)
         {
             cap >> frame;
         }
