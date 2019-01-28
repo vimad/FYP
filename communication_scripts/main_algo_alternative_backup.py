@@ -12,11 +12,12 @@ import os, sys, time, math, errno
 tagID = 13
 
 kp = 0.1
-kd = 0.0
+kdx = 0.05
+kdy = 0.05
 ki = 0
 
 kpz = 0.05
-kdz = 0.025
+kdz = 0.0
 
 FIFO_R = '/tmp/fifo_c-p'
 FIFO_W = '/tmp/fifo_p-c'
@@ -106,7 +107,7 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             seeked = True
             continue
  
-        elif (raw_data == "TIMEOUT"):
+        elif (raw_data == "TIMEOUT" and False):
             print("In prediction step")
             corrected_cords = predictionOf(prev_cords, corrected_velocities, time.time()-t1)
             corrected_velocities = getVectorInDroneFrame(roll, pitch, velocities)
@@ -115,12 +116,12 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
             prev_cords = corrected_cords
             
             timeoutCount += 1
-            
-        
+
         elif (len(raw_data) > 0):
             print("Normal state")
             try:
                 data = [float(i.strip().replace("\x00","")) for i in raw_data.split(",")]
+                data[1] = data[1] + 0.04
                 #corrected_cords = getVectorInEarthFrame(roll,pitch,data)
                 corrected_cords = data
                 z = corrected_cords[2]
@@ -138,7 +139,9 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 
 
         
-        
+        roll=copter.att_roll_deg*np.pi/180
+        pitch=copter.att_pitch_deg*np.pi/180
+        yaw=copter.att_heading_deg*np.pi/180
         corrected_velocities = getVectorInDroneFrame(roll, pitch, velocities)
         copter.setOffsetVelocity(corrected_velocities[0], corrected_velocities[1], corrected_velocities[2])
 
@@ -151,7 +154,8 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
 
         try:
           logFile = open(filename,"a+")
-          logFile.write("Position:"+str(data)+"\nVelocity:"+str(corrected_velocities)+"\nAttitude:"+str([roll,pitch,yaw])+"\ndt:"+str(dt)+"\n")
+          logFile.write("Position:\t"+raw_data+str([roll,pitch,yaw])+"\n")
+          logFile.write("Velocity:\t"+str(corrected_velocities)+str([roll,pitch,yaw])+"\n")
           logFile.close()
         except Exception as e:
           print("\nLogging failed")
@@ -160,23 +164,9 @@ def main(connectString = "/dev/ttyS0", baud = 57600):
         raw_data = None
 
     
-    copter.setOffsetVelocity(0,0,0)
-    
-    
-    while(z > 0.1):
-        dt = time.time() - t1
-        location_now = predictionOf(prev_cords,velocities,dt)
-        prev_cords = location_now
-        z = location_now[2]
-        velocities = [0,0,kpz*location_now[2]]
-        corrected_velocities = getVectorInDroneFrame(roll, pitch, velocities)
-        copter.setOffsetVelocity(corrected_velocities[0], corrected_velocities[1], corrected_velocities[2])
-        t1 = time.time()
-        time.sleep(0.05)
-        
-    copter.setOffsetVelocity(0,0,0)
-    time.sleep(1)
-    copter.disarm()
+    #copter.setOffsetVelocity(0,0,0)
+    #time.sleep(0.75)
+    copter.setMode("LAND")
 
 
 def getTagInfo(tagID):
@@ -205,8 +195,8 @@ def calcPID(curr_data, prev_data, max_err):
     y_dot = curr_data[1] - prev_data[1]
     z_dot = curr_data[2] - prev_data[2]
 
-    vx = kp*curr_data[0]+kd*x_dot
-    vy = kp*curr_data[1]+kd*y_dot
+    vx = kp*curr_data[0]+kdx*x_dot
+    vy = kp*curr_data[1]+kdy*y_dot
     vz = kpz*curr_data[2]+kdz*z_dot
 
     if ((curr_data[0]**2 + curr_data[1]**2) > max_err**2):

@@ -121,6 +121,7 @@ void TagInterface::initDetector()
     cx = 321;
     cy = 242;
     state = 1;
+    tagState = 1;
     previousHeight = 8;
 
     //inizialize the pipe
@@ -205,21 +206,43 @@ void TagInterface::process()
           last_t = t;
         }
 
-        
+        int needed = 0;        
         for (int i = 0; i < zarray_size(detections); i++)
         {
         	apriltag_detection_t *det;
             zarray_get(detections, i, &det);
-
-            pose position;
-            position = getPosition(det);
-            if(com)
-              pipe.SendMessage(position);
-
-            cout << "x = "<< position.x << " y = "<<position.y<<" z = "<<position.z<<endl;
             
-            if(isVisualFeedOn || record)
-			    drawTags(det,frame);
+            pose position;
+            if(det->id == 7 && tagState == 1){
+              position = getPosition(det);
+              if(com)
+                pipe.SendMessage(position);
+              cout << "id = "<< det->id << " x = "<< position.x << " y = "<<position.y<<" z = "<<position.z<<endl;
+              needed++;
+              if(isVisualFeedOn || record)
+			          drawTags(det,frame);
+            }
+            if(det->id == 12 && tagState == 2){
+              position = getPosition(det);
+              if(com)
+                pipe.SendMessage(position);
+              cout << "id = "<< det->id << " x = "<< position.x << " y = "<<position.y<<" z = "<<position.z<<endl;
+              needed++;
+              if(isVisualFeedOn || record)
+			          drawTags(det,frame);
+            }
+        }
+        
+        if(needed == 0){
+            cout<<"not needed"<<endl;
+            if(com)
+            {
+              pose p;
+              p.id = 1;
+              p.timestamp = tic();
+              p.x = 0; p.y = 0; p.z = 0;
+              pipe.SendMessage(p);
+            }
         }
 
         zarray_destroy(detections);
@@ -257,6 +280,9 @@ pose TagInterface::getPosition(apriltag_detection_t *det)
     matd_t *M = homography_to_pose(det->H, fx, fy, cx, cy);
     
     double scale = 0.2; //tag size / 2
+    if(tagState == 2){
+      scale = 0.081;
+    }
     MATD_EL(M, 0, 3) *= scale;
     MATD_EL(M, 1, 3) *= scale;
     MATD_EL(M, 2, 3) *= scale;
@@ -279,6 +305,7 @@ pose TagInterface::getPosition(apriltag_detection_t *det)
       cx = 161;
       cy = 121;
       state =2;
+      tagState =1; 
     }
     if(previousHeight > 2 && state == 2){
       cap.set(CV_CAP_PROP_FRAME_WIDTH,640);
@@ -288,7 +315,8 @@ pose TagInterface::getPosition(apriltag_detection_t *det)
       cx = 321;
       cy = 242;
       state =1;
-    }  
+      tagState = 1;
+    } 
 
     return position;
 }

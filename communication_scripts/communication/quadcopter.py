@@ -172,7 +172,7 @@ class Quadcopter:
         '''
 
         #---------------add takeoff point and altitude if not set already--------------------#
-        self.missionAddTakeoff(altitude=1.5*altitude, pitch=pitch)
+        self.missionAddTakeoff(altitude=altitude, pitch=pitch)
         #------------------------------------------------------------------------------------#
 
         
@@ -197,8 +197,9 @@ class Quadcopter:
 
         #--------------------------Arm the quadcopter----------------------------------------#
         noOfTries = 0
+        self.arm()
 
-        while (not self.vehicle.armed):
+        '''while (not self.vehicle.armed):
             self.arm()
             noOfTries += 1
             time.sleep(2.0)
@@ -206,13 +207,14 @@ class Quadcopter:
             if (noOfTries > 5):
                 print ('Cannot arm')
                 break
+        '''
         #-------------------------------------------------------------------------------------#
         
 
-        
+        print(self.vehicle.armed)
 
-        #--------------------------------Change mode to Auto----------------------------------#
-        if (self.vehicle.armed):
+        #--------------------------------Change mode----------------------------------#
+        if (True):#self.vehicle.armed):
             print ('Armed!!')
             while (not (self.getMode() == "GUIDED")):
                 self.setMode("GUIDED")

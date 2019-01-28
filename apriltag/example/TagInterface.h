@@ -44,6 +44,7 @@ private:
 	int record;
   double previousHeight;
   int state;
+  int tagState;
   int fx,fy,cx,cy;
 
 	bool initialized;
